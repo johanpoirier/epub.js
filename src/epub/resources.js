@@ -510,7 +510,7 @@ class Resources {
 
 	injectScript(text, src) {
 		let reg = /<[ ]*\/head[ ]*>/;
-		let toInject = `<script src="${src}" type="text/javascript"></script>`;
+		let toInject = "<script src=\"" + src + "\" type=\"text/javascript\"><\/script>";
 
 		return text.replace(reg, toInject + "$&");
 	}
