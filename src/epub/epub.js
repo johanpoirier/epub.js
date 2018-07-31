@@ -294,7 +294,7 @@ class Epub {
 			resolved = this.path.resolve(path);
 		}
 
-		if(absolute != false && this.url) {
+		if(absolute === true && this.url) {
 			resolved = this.url.resolve(resolved);
 		}
 
@@ -355,7 +355,7 @@ class Epub {
 		if(this.archived) {
 			url = new Url(path, "");
 		} else if (this.url) {
-			url = this.url.resolve(path);
+			url = this.url;
 		} else {
 			url = new Url(path);
 		}
@@ -544,10 +544,10 @@ class Epub {
 			this.locations = new Locations();
 		}
 		return this.locations.generate(this.book.sections, breakPoint)
-			.then((locations) => {
-				book.locations = locations;
+			.then(locations => {
+				this.book.locations = locations;
 				return locations;
-			})
+			});
 	}
 
 	loadLocations(json) {
