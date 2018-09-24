@@ -247,7 +247,7 @@ class ContinuousViewManager extends DefaultViewManager {
 		let dir = horizontal && rtl ? -1 : 1; //RTL reverses scrollTop
 
 		var offset = horizontal ? this.scrollLeft : this.scrollTop * dir;
-		var visibleLength = horizontal ? bounds.width : bounds.height;
+		var visibleLength = horizontal ? Math.floor(bounds.width) : bounds.height;
 		var contentLength = horizontal ? this.container.scrollWidth : this.container.scrollHeight;
 
 		let prepend = () => {
@@ -341,7 +341,7 @@ class ContinuousViewManager extends DefaultViewManager {
 		var prevTop;
 		var prevLeft;
 
-		if(this.settings.height) {
+		if(!this.settings.fullsize) {
 			prevTop = this.container.scrollTop;
 			prevLeft = this.container.scrollLeft;
 		} else {
@@ -357,7 +357,7 @@ class ContinuousViewManager extends DefaultViewManager {
 			if(this.settings.axis === "vertical") {
 				this.scrollTo(0, prevTop - bounds.height, true);
 			} else {
-				this.scrollTo(prevLeft - bounds.width, 0, true);
+				this.scrollTo(prevLeft - Math.floor(bounds.width), 0, true);
 			}
 		}
 
@@ -379,7 +379,7 @@ class ContinuousViewManager extends DefaultViewManager {
 
 		this.tick = requestAnimationFrame;
 
-		if(this.settings.height) {
+		if(!this.settings.fullsize) {
 			this.prevScrollTop = this.container.scrollTop;
 			this.prevScrollLeft = this.container.scrollLeft;
 		} else {
@@ -390,7 +390,7 @@ class ContinuousViewManager extends DefaultViewManager {
 		this.scrollDeltaVert = 0;
 		this.scrollDeltaHorz = 0;
 
-		if(this.settings.height) {
+		if(!this.settings.fullsize) {
 			scroller = this.container;
 			this.scrollTop = this.container.scrollTop;
 			this.scrollLeft = this.container.scrollLeft;
@@ -411,7 +411,7 @@ class ContinuousViewManager extends DefaultViewManager {
 	removeEventListeners(){
 		var scroller;
 
-		if(this.settings.height) {
+		if(!this.settings.fullsize) {
 			scroller = this.container;
 		} else {
 			scroller = window;
@@ -425,7 +425,7 @@ class ContinuousViewManager extends DefaultViewManager {
 		let scrollLeft;
 		let dir = this.settings.direction === "rtl" ? -1 : 1;
 
-		if(this.settings.height) {
+		if(!this.settings.fullsize) {
 			scrollTop = this.container.scrollTop;
 			scrollLeft = this.container.scrollLeft;
 		} else {

@@ -75,7 +75,7 @@ class Packaging {
 	/**
 	 * Parse Metadata
 	 * @private
-	 * @param  {document} xml
+	 * @param  {node} xml
 	 * @return {object} metadata
 	 */
 	parseMetadata(xml){
@@ -100,6 +100,7 @@ class Packaging {
 		metadata.orientation = this.getPropertyText(xml, "rendition:orientation");
 		metadata.flow = this.getPropertyText(xml, "rendition:flow");
 		metadata.viewport = this.getPropertyText(xml, "rendition:viewport");
+		metadata.media_active_class = this.getPropertyText(xml, "media:active-class");
 
 		return metadata;
 	}
@@ -107,7 +108,7 @@ class Packaging {
 	/**
 	 * Parse Manifest
 	 * @private
-	 * @param  {document} manifestXml
+	 * @param  {node} manifestXml
 	 * @return {object} manifest
 	 */
 	parseManifest(manifestXml){
@@ -122,12 +123,14 @@ class Packaging {
 			var id = item.getAttribute("id"),
 					href = item.getAttribute("href") || "",
 					type = item.getAttribute("media-type") || "",
+					overlay = item.getAttribute("media-overlay") || "",
 					properties = item.getAttribute("properties") || "";
 
 			manifest[id] = {
 				"href" : href,
 				"type" : type,
-				"properties" : properties.length ? properties.split(" ") : [],
+				"overlay" : overlay,
+				"properties" : properties.length ? properties.split(" ") : []
 			};
 
 		});
@@ -138,7 +141,8 @@ class Packaging {
 
 	/**
 	 * Parse Spine
-	 * @param  {document} spineXml
+	 * @private
+	 * @param  {node} spineXml
 	 * @param  {Packaging.manifest} manifest
 	 * @return {object} spine
 	 */
@@ -177,6 +181,8 @@ class Packaging {
 	/**
 	 * Find TOC NAV
 	 * @private
+	 * @param {element} manifestNode
+	 * @return {string}
 	 */
 	findNavPath(manifestNode){
 		// Find item with property "nav"
@@ -189,6 +195,9 @@ class Packaging {
 	 * Find TOC NCX
 	 * media-type="application/x-dtbncx+xml" href="toc.ncx"
 	 * @private
+	 * @param {element} manifestNode
+	 * @param {element} spineNode
+	 * @return {string}
 	 */
 	findNcxPath(manifestNode, spineNode){
 		var node = qsp(manifestNode, "item", {"media-type":"application/x-dtbncx+xml"});
@@ -212,7 +221,8 @@ class Packaging {
 	 * Find the Cover Path
 	 * <item properties="cover-image" id="ci" href="cover.svg" media-type="image/svg+xml" />
 	 * Fallback for Epub 2.0
-	 * @param  {document} packageXml
+	 * @private
+	 * @param  {node} packageXml
 	 * @return {string} href
 	 */
 	findCoverPath(packageXml){
@@ -239,7 +249,7 @@ class Packaging {
 	/**
 	 * Get text of a namespaced element
 	 * @private
-	 * @param  {document} xml
+	 * @param  {node} xml
 	 * @param  {string} tag
 	 * @return {string} text
 	 */
@@ -262,7 +272,7 @@ class Packaging {
 	/**
 	 * Get text by property
 	 * @private
-	 * @param  {document} xml
+	 * @param  {node} xml
 	 * @param  {string} property
 	 * @return {string} text
 	 */

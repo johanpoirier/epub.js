@@ -18,6 +18,7 @@ import Epub from "../epub/epub";
 // import Navigation from "../epub/navigation";
 import {replaceBase, replaceCanonical, replaceMeta} from "../utils/replacements";
 import Url from "../utils/url";
+import request from "../utils/request";
 
 const DEV = false;
 
@@ -60,6 +61,7 @@ class Rendition {
 			spread: null,
 			minSpreadWidth: 800,
 			stylesheet: null,
+			resizeOnOrientationChange: true,
 			script: null,
 			worker: undefined,
 			workerScope: undefined
@@ -153,7 +155,11 @@ class Rendition {
 		// Block the queue until rendering is started
 		this.q.enqueue(this.started);
 
-		if (manifest) {
+		if (typeof manifest.then !== "undefined") { // Promise
+			manifest.then((result) => {
+				this.unpack(result);
+			});
+		} else {
 			this.unpack(manifest);
 		}
 
@@ -175,15 +181,17 @@ class Rendition {
 	/**
 	 * Load Book object or JSON manifest
 	 */
-	unpack(manifest) {
-		if (!manifest) {
+	unpack(contents) {
+		if (!contents) {
 			throw new Error("No manifest provided");
 		}
 
-		if (typeof manifest === "string") {
-			this.manifest = JSON.parse(manifest);
+		if (typeof contents === "string") {
+			this.manifest = JSON.parse(contents);
+		} else if (typeof contents.manifest === "object") {
+			this.manifest = contents.manifest;
 		} else {
-			this.manifest = manifest;
+			this.manifest = contents;
 		}
 
 		let spine = this.manifest.spine.map((item, index) =>{
@@ -209,7 +217,11 @@ class Rendition {
 			this.spineById[section.idref] = index;
 		});
 
-		this.book = new Book(manifest);
+		if (contents.manifest) {
+			this.book = new Book(contents);
+		} else {
+			this.book = new Book(this.manifest);
+		}
 
 		this.start();
 	}
@@ -320,7 +332,7 @@ class Rendition {
 	 * @param  {element} element to attach to
 	 * @return {Promise}
 	 */
-	attachTo(element){
+	renderTo(element){
 
 		return this.q.enqueue(function () {
 
@@ -339,6 +351,16 @@ class Rendition {
 
 		}.bind(this));
 
+	}
+
+	/**
+	 * Alias for renderTo
+	 * @alias renderTo
+	 * @param  {element} element to attach to
+	 * @return {Promise}
+	 */
+	attachTo(element) {
+		return this.renderTo(element);
 	}
 
 	/**
@@ -863,7 +885,7 @@ class Rendition {
 	/**
 	 * Pass the events from a view's Contents
 	 * @private
-	 * @param  {View} view
+	 * @param  {Contents} view contents
 	 */
 	passEvents(contents){
 		var listenedEvents = Contents.listenedEvents;
@@ -948,17 +970,22 @@ class Rendition {
 			});
 		}
 
+		let computed = contents.window.getComputedStyle(contents.content, null);
+		let height = contents.content.offsetHeight - (parseFloat(computed.paddingTop) + parseFloat(computed.paddingBottom));
+
 		contents.addStylesheetRules({
 			"img" : {
 				"max-width": (this._layout.columnWidth ? this._layout.columnWidth + "px" : "100%") + "!important",
-				"max-height": (this._layout.height ? (this._layout.height * 0.6) + "px" : "60%") + "!important",
+				"max-height": height + "px" + "!important",
 				"object-fit": "contain",
-				"page-break-inside": "avoid"
+				"page-break-inside": "avoid",
+				"break-inside": "avoid"
 			},
 			"svg" : {
 				"max-width": (this._layout.columnWidth ? this._layout.columnWidth + "px" : "100%") + "!important",
-				"max-height": (this._layout.height ? (this._layout.height * 0.6) + "px" : "60%") + "!important",
-				"page-break-inside": "avoid"
+				"max-height": height + "px" + "!important",
+				"page-break-inside": "avoid",
+				"break-inside": "avoid"
 			}
 		});
 
@@ -1048,7 +1075,7 @@ class Rendition {
 
 	worker(workerUrl) {
 		let deferred = new defer();
-		let key = this.key();
+		// let key = this.key();
 
 		// Resolve early if book is not archived and not cross domain
 		let url = new Url(this.book.url);
@@ -1057,51 +1084,39 @@ class Rendition {
 		if(source !== "application/epub+zip" &&
 			 url.origin === window.location.origin) {
 			deferred.resolve();
+			return deferred.promise;
 		}
 
 		if ('serviceWorker' in navigator) {
 
 			let worker = navigator.serviceWorker.controller;
+
 			// Worker is already running
 			if (worker) {
-				deferred.resolve();
+				deferred.resolve(worker);
+				return deferred.promise;
 			}
 
 			navigator.serviceWorker.register(workerUrl, { scope: this.settings.workerScope })
 				.then((reg) => {
 
-					worker = navigator.serviceWorker.controller;
-
-					if (reg.active && !worker) {
-						this.emit(EVENTS.RENDITION.WORKER_INACTIVE);
-						deferred.resolve();
-					}
-
-					if (worker) {
-						deferred.resolve();
+					if (reg.active) {
+						worker = reg.active;
+						deferred.resolve(worker);
+					} else {
+						worker = reg.installing;
+						worker.addEventListener('statechange', () => {
+							if(worker.state === "activated") {
+								deferred.resolve(worker);
+							}
+						});
 					}
 
 				}, (error) => {
 					// registration failed
-					console.error(error);
-
 					this.emit(EVENTS.RENDITION.WORKER_FAILED);
 					deferred.reject('Worker registration failed', error);
 				});
-
-			navigator.serviceWorker.addEventListener('message', (event) => {
-				DEV && console.log("[sw msg]", event.data);
-				if (event.data.msg === "active") {
-					deferred.resolve();
-				}
-			});
-
-			navigator.serviceWorker.addEventListener("controllerchange", (event) => {
-				worker = navigator.serviceWorker.controller;
-				if (worker) {
-					deferred.resolve();
-				}
-			});
 
 
 		} else {
@@ -1112,6 +1127,7 @@ class Rendition {
 	}
 
 	cache(worker) {
+		let key = this.key();
 		if (!worker) {
 			worker = navigator.serviceWorker.controller;
 		}
