@@ -375,7 +375,7 @@ class Epub {
 		});
 
 		let processed = [];
-		let crossdomain = url.origin !== location.origin;
+		let crossdomain = window.location && url.origin !== location.origin;
 
 		// If caches doesn't exist, use replacements instead
 		if (typeof(caches) === "undefined") {
