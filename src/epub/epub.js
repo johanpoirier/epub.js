@@ -182,7 +182,7 @@ class Epub {
 		} else if(type == INPUT_TYPE.MANIFEST) {
 			this.url = new Url(input);
 			this.locationUrl = new Url(input);
-			opening = this.openManifest(this.url.Path.toString());
+			opening = this.openManifest(this.url.toString());
 		} else {
 			this.url = new Url(input);
 			this.locationUrl = new Url(input);
