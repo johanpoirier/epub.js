@@ -150,7 +150,7 @@ class Epub {
 		let inputLocation;
 
 		// For browsers
-		if (typeof window !== "undefined") {
+		if (typeof window !== "undefined" && typeof window.location !== "undefined") {
 			inputLocation = window.location.href;
 		}
 
